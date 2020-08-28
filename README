@@ -1,0 +1,71 @@
+Info:
+Alan Ta
+819357091
+cssc2363
+CS570 Summer
+Program 5: FIFO and LRU Page Replacement Simulator
+Program Description: The purpose of this program assignment was to understand virtual memory, pages and frames. It was also to understand/create FIFO and LRU algorithm functionality.
+
+Files included:
+Libraries:
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+How to run:
+:make
+
+:./testvm (#ReferenceSZ) (#FrameNR)
+    // ./testvm 7 3
+
+: make clean
+
+On a successful execution:
+Running program using FIFO algorithm ... ...
+5 -1 -1
+5 2 -1
+5 2 -1
+5 2 0
+4 2 0
+ .
+ .
+ .
+0 6 2
+1 6 2
+page fault of FIFO: 13
+
+The Same Access Pattern: 5 2 2 0 4 6 4 4 1 3 4 5 0 4 5 6 2 0 0 1
+Running program using LRU algorithm ... ...
+5 -1 -1
+5 2 -1
+5 2 -1
+5 2 0
+4 2 0
+ .
+ .
+ .
+2 6 0
+2 1 0
+page fault of LRU: 13
+
+
+Please elaborate how you implement your FIFO and LRU replacement algorithm.
+You need to explain your design, not just paste source code here ...
+
+For FIFO:
+So pretty much the main idea for FIFO is that I need to go through each frame of size FrameNR and compare the values. So the goal was to start with one accessPatternLength and compare that value with each frame. I would does this til I have compared all the accessPatterns. The idea I had was for each single comparison, I would increment a variable called mismatch.
+mismatch represents if a frame value doesnt match a accessPattern. So if no frames match, I would have incremented mismatch FrameNR number of times. For example, for a frame of -1 -1 -1, and im comparing those with 5, it would increment for each frame. Thus mismatch would be 3. Now, if they were to match, I would then decrement mismatch. So it can never reach the size of FrameNR.
+With this idea in mind, I just constructed two for() loops. The outer for loop is goes through the accessPatternLength and the inner for loop goes through each frame/FrameNR. The inner for() loop handles the mismatch variable and after its done, I will then deal with insertion and etc..
+So after I have gathered the mismatch value, I need to check if mismatch matches FrameNR. If it matches, that means none of the frames values are the same as the value im trying to insert. This is then a Page Fault and I increment Page Faults value. I then insert the value to the first index (Assuming this is the start of the program). I then set the nextToReplace to be the increment of the previous value (I move it down one).
+But if the nextToReplace reaches the FrameSZ value, i set it back to 0. So this creates a constant loop for the page replacement and an inherent design of FIFO. The first value in gets sent out when the page needs to be replaced. I do not need to worry if mismatch does not equal FrameNR because duplicates are not accounted for and the insertion of duplicates should not affect FIFO. Because of FIFO's design, the first outs always follow an order of 0 to FrameNR.
+With that basic idea, my code is largely simple as I just need to follow that behavior. When after inserting, increment once to the new index for the next insertion. If that insertion index value equals the FrameNR (If it goes off the size of the array used), bring it back to 0 and start again.
+
+For LRU:
+LRU was more trickier than FIFO. The basic idea of using two for() loops to compare the values of the accessPattern and PageFrameList are the same. They are the same because both FIFO and LRU need to check the values of the FrameList and the accessPattern. But where they differ is in their handling of the page replacements.
+LRU is unique in that there needs to be a value or something to represent how long an accessPattern has stayed in the PageFrameList. This requires outside help and more overhead. So I created a lruClock() and LRUIndex() to handle this extra work. lruClock() represents the values of each index of PageFrameList. Each time it is called, I increments once for each value. I inserted this function so everytime the PageFrameList was finished comparing, it would increment all the values by one. This clock acts like a timer for how long a frame value existed.
+Like FIFO, I have a mismatch variable and when mismatch equals frameNR (As in accessPattern's value does not exist on the PageFrameList), I would then insert the value in the PageFramelist, increment page fault by one, zero out the value at the index for lruClock, and set the nextToReplace = LRUIndex().
+So I zero'd out the lruClock value at that index because since I inserted the page, it should be the most recent and thus least used frame. This follows the idea of LRU. I then called LRUIndex(), which is a function I created to find the next largest lruClock value OR the next frame to be replaced as its been in the longest. LRUIndex works as it just goes through a temp array I created and finds the largest tick increment. In the function, I set the leastUsed variable to be the first index temparray[0] and then start from 1. I have an if() statement to catch is a newer value is found to be larger. This code works from left to right or from 0 to FrameNR size. This means that if there are to values that are equal(like, 3 3 2), it will take the left most/first largest value of the two (so index 0 of 3 3 2).
+lruClock() and LRUIndex() work together to help keep track of which frames have been in the list the longest. One keeps the value incrementing after each change and the other finds the next to be replaced.
+Unlike FIFO,  mismatch != FrameNR is important. This means an accessPattern value matches a value in the PageFrameList. Because of how LRU is designed, a duplicate should is not thrown out, but rather in my code, it has to refresh the clock value of that accessPattern index. After studying LRU, I notice this should be the case unlike FIFO. So when mismatch !- FrameNR(a duplicate) I have an if() statement to zero out that accessPattern's clock value. BUT I then have to recalculate the LRUIndex and find the longest frame.
+I noticed this in my testing. In a case where the longest accessPattern value is set by LRUIndex() is a duplicate, zeroing it out won't prevent its being the next to be replaced. Thats because LRUIndex was preset to it and needed to be updated after the duplicate. So even tho the tick value fo the duplicate is 0, the LRUIndex was previously set to it still. So I fixed it by zeroing out the duplicate first then setting a new LRUIndex for the longest frame time.
+So the basic idea of LRU is to have a clock and to monitor each value in the PageFrameList. After each insertion, the clock will increment the values. Whether there is an insertion or a duplicate, call LRUIndex() to find the next largest frame and set it to be replaced. LRU works with more overhead and the need to keep track of time length. lruClock() and LRUIndex() help instill that idea.
